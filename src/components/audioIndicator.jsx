@@ -1,7 +1,4 @@
 
-
-
-
 import { useEffect, useState, useRef } from "react";
 
 export function AudioIndicator({ stream, displayName }) {
