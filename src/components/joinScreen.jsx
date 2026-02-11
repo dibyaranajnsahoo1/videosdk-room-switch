@@ -19,7 +19,7 @@ export function LobbyScreen({
   return (
     <div className="lobby-container">
       <div className="lobby-box">
-        <h1 className="logo">StreamSync</h1>
+        <h1 className="logo">VideoSDK</h1>
         <p className="tagline">Secure HD Video Meetings</p>
 
         {!roomsReady ? (

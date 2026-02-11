@@ -1,3 +1,5 @@
+
+
 import React, { useMemo } from "react";
 
 export function RoomSwitcher({
@@ -20,8 +22,8 @@ export function RoomSwitcher({
   );
 
   const handleRoomSwitch = () => {
-    if (isTransitioning || !targetRoomId) return;
-    onSwitchRoom(targetRoom); // ✅ ONLY room
+    if (isTransitioning) return;
+    onSwitchRoom(targetRoom, targetRoomId);
   };
 
   return (
@@ -30,27 +32,41 @@ export function RoomSwitcher({
         <div className="vds-room-badge active">
           Room {currentRoom}
         </div>
-
         <div className="vds-room-meta">
-          <span>Meeting ID</span>
-          <strong>{currentRoomId}</strong>
+          <span className="vds-room-label">Meeting ID</span>
+          <span className="vds-room-value">
+            {currentRoomId}
+          </span>
+        </div>
+      </div>
+
+      <div className="vds-room-center">
+        <div className="vds-room-connector">
+          <div className="vds-dot active"></div>
+          <div className="vds-line"></div>
+          <div className="vds-dot"></div>
         </div>
       </div>
 
       <div className="vds-room-right">
-        <button
+       <button
           className={`vds-room-switch-btn ${
             isTransitioning ? "loading" : ""
           }`}
           onClick={handleRoomSwitch}
-          disabled={isTransitioning}
+          disabled={isTransitioning || !targetRoomId}
         >
           {isTransitioning
             ? "Switching..."
             : `Switch to Room ${targetRoom}`}
         </button>
 
-        <small>Target: {targetRoomId}</small>
+
+        <div className="vds-room-target-info">
+          <span>Target</span>
+          <strong>Room {targetRoom}</strong>
+          <small>{targetRoomId}</small>
+        </div>
       </div>
     </div>
   );

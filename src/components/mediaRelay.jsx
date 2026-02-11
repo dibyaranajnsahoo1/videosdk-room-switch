@@ -42,69 +42,72 @@ export function MediaRelay({
   });
 
   const startRelay = async () => {
-    if (!localMicOn && !localWebcamOn) {
-      setStatusText("Enable Mic or Camera before starting relay");
-      return;
-    }
+  if (relayActive) return;
 
-    try {
-      setStatusText("Connecting to second room...");
+  if (!localMicOn && !localWebcamOn) {
+    setStatusText("Enable Mic or Camera before starting relay");
+    return;
+  }
 
-      publish(
-        {
-          type: "RELAY_STARTED",
-          sourceRoom: currentRoom,
-          targetRoom,
-          participantId: localParticipantId,
-          participantName: localParticipant?.displayName || "Participant",
-          timestamp: Date.now(),
-        },
-        { persist: true }
-      );
+  try {
+    setStatusText("Starting relay...");
 
-      const relayUrl = `${window.location.origin}?relay=true&room=${targetRoom}&roomId=${targetRoomId}&name=${encodeURIComponent(
-        localParticipant?.displayName || "Participant"
-      )}(Relay)`;
+    const relayUrl = `${window.location.origin}?relay=true&room=${targetRoom}&roomId=${targetRoomId}&name=${encodeURIComponent(
+      localParticipant?.displayName || "Participant"
+    )}(Relay)`;
 
-      const popup = window.open(
-        relayUrl,
-        `dual_${targetRoom}`,
-        "width=420,height=320"
-      );
+    const popup = window.open(
+      relayUrl,
+      `_blank`,
+      "width=420,height=320"
+    );
 
-      if (!popup) throw new Error("Popup blocked");
+    if (!popup) throw new Error("Popup blocked");
 
-      relayWindow.current = popup;
-      setRelayActive(true);
-      setStatusText(`Live in Room ${currentRoom} & ${targetRoom}`);
-
-      timerRef.current = setInterval(() => {
-        setRelayDuration((prev) => prev + 1);
-      }, 1000);
-    } catch (err) {
-      setStatusText("Popup blocked. Allow popups.");
-      setRelayActive(false);
-    }
-  };
-
-  const stopRelay = () => {
-    if (relayWindow.current && !relayWindow.current.closed) {
-      relayWindow.current.close();
-    }
+    relayWindow.current = popup;
 
     publish({
-      type: "RELAY_STOPPED",
+      type: "RELAY_STARTED",
       sourceRoom: currentRoom,
+      targetRoom,
       participantId: localParticipantId,
+      participantName: localParticipant?.displayName || "Participant",
       timestamp: Date.now(),
     });
 
-    clearInterval(timerRef.current);
-    setRelayDuration(0);
+    setRelayActive(true);
+    setStatusText(`Live in Room ${currentRoom} & ${targetRoom}`);
+
+    timerRef.current = setInterval(() => {
+      setRelayDuration((prev) => prev + 1);
+    }, 1000);
+  } catch (err) {
+    setStatusText("Popup blocked. Allow popups.");
     setRelayActive(false);
-    relayWindow.current = null;
-    setStatusText("Relay stopped");
-  };
+  }
+};
+
+const stopRelay = () => {
+  if (!relayActive) return;
+
+  if (relayWindow.current && !relayWindow.current.closed) {
+    relayWindow.current.close();
+  }
+
+  publish({
+    type: "RELAY_STOPPED",
+    sourceRoom: currentRoom,
+    participantId: localParticipantId,
+    timestamp: Date.now(),
+  });
+
+  clearInterval(timerRef.current);
+  setRelayDuration(0);
+  setRelayActive(false);
+  relayWindow.current = null;
+  setStatusText("Relay stopped");
+};
+
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -201,8 +204,5 @@ export function MediaRelay({
     </div>
   );
 }
-
-
-
 
 

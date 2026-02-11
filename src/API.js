@@ -1,4 +1,3 @@
-
 export const getAuthToken = async () => {
   return import.meta.env.VITE_VIDEOSDK_TOKEN;
 };

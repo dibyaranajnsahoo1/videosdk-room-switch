@@ -9,16 +9,16 @@ export function MeetingView(props) {
   const [connectionState, setConnectionState] = useState("IDLE");
   const [relayPanelOpen, setRelayPanelOpen] = useState(false);
   const [activeSpeakerId, setActiveSpeakerId] = useState(null);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   const hasJoinedRef = useRef(false);
-  const isSwitchingRef = useRef(false);
 
   const {
     join,
-    leave,
     participants,
     localParticipant,
     meetingId,
+    switchTo,
   } = useMeeting({
     onMeetingJoined: () => {
       setConnectionState("CONNECTED");
@@ -26,30 +26,28 @@ export function MeetingView(props) {
     },
 
     onMeetingLeft: () => {
+      // Only reset if user manually left
+      setConnectionState("IDLE");
+      setRelayPanelOpen(false);
       hasJoinedRef.current = false;
-
-      if (!isSwitchingRef.current) {
-        setConnectionState("IDLE");
-        setRelayPanelOpen(false);
-        props.onMeetingLeave?.();
-      }
+      props.onMeetingLeave?.();
     },
 
     onSpeakerChanged: (id) => {
       setActiveSpeakerId(id);
     },
 
-    onError: () => {
+    onError: (err) => {
+      console.log("Meeting Error:", err);
       setConnectionState("IDLE");
       hasJoinedRef.current = false;
     },
   });
 
-  
+  /* ---------------- Initial Join ---------------- */
 
   useEffect(() => {
     if (!props.meetingId) return;
-
     if (hasJoinedRef.current) return;
 
     setConnectionState("CONNECTING");
@@ -61,7 +59,7 @@ export function MeetingView(props) {
     return () => clearTimeout(timer);
   }, [props.meetingId]);
 
-  
+  /* ---------------- Participants ---------------- */
 
   const remoteParticipants = useMemo(() => {
     if (!participants) return [];
@@ -73,7 +71,7 @@ export function MeetingView(props) {
   const totalParticipants =
     remoteParticipants.length + (localParticipant ? 1 : 0);
 
-
+  /* ---------------- Join Handler ---------------- */
 
   const handleJoin = () => {
     if (hasJoinedRef.current) return;
@@ -82,32 +80,42 @@ export function MeetingView(props) {
     join();
   };
 
+  /* ---------------- SWITCH USING switchTo ---------------- */
 
-  const handleSwitch = async (room) => {
+  const handleSwitch = async (targetRoom, targetRoomId) => {
     if (connectionState !== "CONNECTED") return;
+    if (!switchTo) return;
 
     try {
-      isSwitchingRef.current = true;
-      setRelayPanelOpen(false);
+      setIsSwitching(true);
       setConnectionState("CONNECTING");
+      setRelayPanelOpen(false);
 
-      await leave();
+      // If you use short-lived tokens, fetch fresh token here
+      const token = props.token;
 
-      props.onSwitchRoom(room);
+      await switchTo({
+        meetingId: targetRoomId,
+        token,
+      });
 
+      // Inform parent about new room
+      props.onSwitchRoom?.(targetRoom, targetRoomId);
+
+      setConnectionState("CONNECTED");
     } catch (err) {
       console.log("Switch error:", err);
+      setConnectionState("CONNECTED");
     } finally {
-      isSwitchingRef.current = false;
+      setIsSwitching(false);
     }
   };
 
- 
+  /* ---------------- UI ---------------- */
 
   return (
     <div className="vds-layout-root">
-
-      
+      {/* Top Bar */}
       <div className="vds-topbar">
         <div className="vds-room-info">
           <h2>Room {props.currentRoom}</h2>
@@ -121,7 +129,7 @@ export function MeetingView(props) {
         )}
       </div>
 
-    
+      {/* CONNECTED STATE */}
       {connectionState === "CONNECTED" ? (
         <>
           <div className="vds-switcher-section">
@@ -130,7 +138,7 @@ export function MeetingView(props) {
               onSwitchRoom={handleSwitch}
               roomAId={props.roomAId}
               roomBId={props.roomBId}
-              isTransitioning={props.isTransitioning}
+              isTransitioning={isSwitching}
             />
           </div>
 
@@ -186,12 +194,18 @@ export function MeetingView(props) {
           )}
         </>
       ) : connectionState === "CONNECTING" ? (
+        /* CONNECTING STATE */
         <div className="vds-connecting-screen">
           <div className="vds-loader-circle"></div>
-          <h3>Switching to Room {props.currentRoom}...</h3>
+          <h3>
+            {isSwitching
+              ? `Switching to Room ${props.currentRoom}...`
+              : `Joining Room ${props.currentRoom}...`}
+          </h3>
           <span>{props.meetingId}</span>
         </div>
       ) : (
+        /* PREJOIN */
         <div className="vds-prejoin-screen">
           <div className="vds-prejoin-card">
             <h3>Ready to Join Room {props.currentRoom}?</h3>
@@ -208,4 +222,3 @@ export function MeetingView(props) {
     </div>
   );
 }
-
